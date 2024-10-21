@@ -12,6 +12,10 @@
     "service_worker": "/js/background.js",
     "type": "module"
   },
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
   "declarative_net_request": {
     "rule_resources": [
       {
