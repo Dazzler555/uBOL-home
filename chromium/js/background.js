@@ -374,16 +374,16 @@ function onMessage(request, sender, callback) {
 async function start() {
     await loadRulesetConfig();
 
-    if (wakeupRun === false) {
+    if ( wakeupRun === false ) {
         await enableRulesets(rulesetConfig.enabledRulesets);
     }
 
     // We need to update the regex rules only when ruleset version changes.
-    if (wakeupRun === false) {
+    if ( wakeupRun === false ) {
         const currentVersion = getCurrentVersion();
-        if (currentVersion !== rulesetConfig.version) {
+        if ( currentVersion !== rulesetConfig.version ) {
             ubolLog(`Version change: ${rulesetConfig.version} => ${currentVersion}`);
-            updateDynamicRules().then(() => {
+            updateDynamicRules().then(( ) => {
                 rulesetConfig.version = currentVersion;
                 saveRulesetConfig();
             });
@@ -393,21 +393,45 @@ async function start() {
     // Permissions may have been removed while the extension was disabled
     const permissionsChanged = await onPermissionsRemoved();
 
-    // Ensure injectables are registered when needed
-    if (wakeupRun === false || permissionsChanged) {
+    // Unsure whether the browser remembers correctly registered css/scripts
+    // after we quit the browser. For now uBOL will check unconditionally at
+    // launch time whether content css/scripts are properly registered.
+    if ( wakeupRun === false || permissionsChanged ) {
         registerInjectables();
+
+        const enabledRulesets = await dnr.getEnabledRulesets();
+        ubolLog(`Enabled rulesets: ${enabledRulesets}`);
+
+        dnr.getAvailableStaticRuleCount().then(count => {
+            ubolLog(`Available static rule count: ${count}`);
+        });
     }
 
-    // Set filtering mode to MODE_COMPLETE on first run, regardless of permissions
-    if (firstRun) {
-        const afterLevel = await setDefaultFilteringMode(MODE_COMPLETE);
-        if (afterLevel === MODE_COMPLETE) {
-            updateDynamicRules();
-            registerInjectables();
-        }
+    // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/declarativeNetRequest
+    //   Firefox API does not support `dnr.setExtensionActionOptions`
+    if ( wakeupRun === false && canShowBlockedCount ) {
+        dnr.setExtensionActionOptions({
+            displayActionCountAsBadgeText: rulesetConfig.showBlockedCount,
+        });
+    }
 
+    runtime.onMessage.addListener(onMessage);
+
+    browser.permissions.onRemoved.addListener(
+        ( ) => { onPermissionsRemoved(); }
+    );
+
+    if ( firstRun ) {
+        const enableOptimal = await hasOmnipotence();
+        if ( enableOptimal ) {
+            const afterLevel = await setDefaultFilteringMode(MODE_OPTIMAL);
+            if ( afterLevel === MODE_OPTIMAL ) {
+                updateDynamicRules();
+                registerInjectables();
+            }
+        }
         const disableFirstRunPage = await adminRead('disableFirstRunPage');
-        if (disableFirstRunPage !== true) {
+        if ( disableFirstRunPage !== true ) {
             runtime.openOptionsPage();
         } else {
             firstRun = false;
