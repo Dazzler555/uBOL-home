@@ -13,8 +13,14 @@
     "type": "module"
   },
   "permissions": [
+    "declarativeNetRequest",
+    "declarativeNetRequestFeedback",
     "activeTab",
-    "scripting"
+    "scripting",
+    "<all_urls>"
+  ],
+  "host_permissions": [
+    "<all_urls>"  // Explicitly specifies that the extension can interact with all URLs
   ],
   "declarative_net_request": {
     "rule_resources": [
